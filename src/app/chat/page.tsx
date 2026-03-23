@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useChat } from "@ai-sdk/react";
-import { DefaultChatTransport } from "ai";
 import { useStore } from "@/lib/store-context";
 import { ChatMessage } from "@/components/chat/ChatMessage";
 import { ChatInput } from "@/components/chat/ChatInput";
@@ -106,23 +105,21 @@ export default function ChatPage() {
   }, [isConnected, router]);
 
   const chat = useChat({
-    transport: new DefaultChatTransport({
-      api: "/api/chat",
-      body: {
-        storeUrl: credentials?.storeUrl,
-        accessToken: credentials?.accessToken,
-        documentContent: documentContent
-          ? {
-              type: documentContent.type,
-              filename: documentContent.filename,
-              content: documentContent.content,
-              summary: documentContent.summary,
-              columns: documentContent.columns,
-              rowCount: documentContent.rowCount,
-            }
-          : undefined,
-      },
-    }),
+    api: "/api/chat",
+    body: {
+      storeUrl: credentials?.storeUrl,
+      accessToken: credentials?.accessToken,
+      documentContent: documentContent
+        ? {
+            type: documentContent.type,
+            filename: documentContent.filename,
+            content: documentContent.content,
+            summary: documentContent.summary,
+            columns: documentContent.columns,
+            rowCount: documentContent.rowCount,
+          }
+        : undefined,
+    },
   });
 
   const messages = chat.messages;
@@ -145,12 +142,12 @@ export default function ChatPage() {
           setDocumentContent(parsed);
 
           const fileInfo = `\n\n[Uploaded file: ${file.name} — ${parsed.summary}]`;
-          chat.sendMessage({ text: message + fileInfo });
+          chat.append({ role: "user", content: message + fileInfo });
         } catch (_error) {
-          chat.sendMessage({ text: message + "\n\n[File upload failed]" });
+          chat.append({ role: "user", content: message + "\n\n[File upload failed]" });
         }
       } else {
-        chat.sendMessage({ text: message });
+        chat.append({ role: "user", content: message });
       }
     },
     [chat]
