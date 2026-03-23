@@ -1,5 +1,5 @@
 import { streamText, tool, zodSchema, stepCountIs } from "ai";
-import { openai } from "@ai-sdk/openai";
+import { createOpenAI } from "@ai-sdk/openai";
 import { z } from "zod";
 import { SYSTEM_PROMPT } from "@/lib/agents";
 import { ShopifyClient } from "@/lib/shopify";
@@ -24,7 +24,7 @@ export async function POST(req: Request) {
     : SYSTEM_PROMPT;
 
   const result = streamText({
-    model: openai("gpt-4o"),
+    model: createOpenAI({ compatibility: "strict" })("gpt-4o"),
     system: systemPrompt,
     messages,
     tools: {
