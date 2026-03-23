@@ -41,28 +41,19 @@ export default function ConnectPage() {
     setIsConnecting(true);
 
     try {
-      // Validate by making a simple API call
-      const normalizedUrl = storeUrl
-        .replace(/^https?:\/\//, "")
-        .replace(/\/$/, "");
-      const shopDomain = normalizedUrl.includes(".myshopify.com")
-        ? normalizedUrl
-        : `${normalizedUrl}.myshopify.com`;
+      // Validate through our server-side API to avoid CORS
+      const response = await fetch("/api/validate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ storeUrl, accessToken }),
+      });
 
-      const response = await fetch(
-        `https://${shopDomain}/admin/api/2024-01/shop.json`,
-        {
-          headers: {
-            "X-Shopify-Access-Token": accessToken,
-          },
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error("Invalid credentials. Please check your store URL and access token.");
+      const result = await response.json();
+      if (!response.ok || !result.valid) {
+        throw new Error(result.error || "Invalid credentials. Please check your store URL and access token.");
       }
 
-      setCredentials({ storeUrl, accessToken });
+      setCredentials({ storeUrl: result.storeUrl, accessToken });
       router.push("/chat");
     } catch (err: any) {
       setError(err.message || "Failed to connect. Please try again.");
