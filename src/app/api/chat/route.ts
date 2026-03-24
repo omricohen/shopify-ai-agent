@@ -24,7 +24,7 @@ export async function POST(req: Request) {
     : SYSTEM_PROMPT;
 
   const result = streamText({
-    model: openai.chat("gpt-4o"),
+    model: openai.chat("gpt-5.4"),
     system: systemPrompt,
     messages: await convertToModelMessages(messages),
     tools: {
