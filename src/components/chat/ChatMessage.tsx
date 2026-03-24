@@ -125,7 +125,10 @@ export const ChatMessage = memo(function ChatMessage({
               "text-sm leading-relaxed prose prose-sm dark:prose-invert max-w-none",
               "prose-p:my-1 prose-headings:my-2 prose-ul:my-1 prose-ol:my-1",
               "prose-code:bg-muted prose-code:rounded prose-code:px-1 prose-code:py-0.5 prose-code:text-xs",
-              "prose-pre:bg-muted prose-pre:rounded-lg prose-pre:p-3"
+              "prose-pre:bg-muted prose-pre:rounded-lg prose-pre:p-3",
+              "prose-table:border-collapse prose-table:w-full prose-table:text-xs prose-table:my-3",
+              "prose-th:border prose-th:border-border prose-th:bg-muted/50 prose-th:px-3 prose-th:py-2 prose-th:text-left prose-th:font-medium prose-th:text-muted-foreground",
+              "prose-td:border prose-td:border-border prose-td:px-3 prose-td:py-2"
             )}
           >
             <ReactMarkdown>{content}</ReactMarkdown>
