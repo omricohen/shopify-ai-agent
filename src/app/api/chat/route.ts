@@ -1,4 +1,4 @@
-import { streamText, tool, zodSchema, stepCountIs } from "ai";
+import { streamText, tool, zodSchema, stepCountIs, convertToModelMessages } from "ai";
 import { openai } from "@ai-sdk/openai";
 import { z } from "zod";
 import { SYSTEM_PROMPT } from "@/lib/agents";
@@ -26,7 +26,7 @@ export async function POST(req: Request) {
   const result = streamText({
     model: openai.chat("gpt-4o"),
     system: systemPrompt,
-    messages,
+    messages: convertToModelMessages(messages),
     tools: {
       get_products: tool({
         description:
