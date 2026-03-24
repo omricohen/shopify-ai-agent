@@ -26,7 +26,7 @@ export async function POST(req: Request) {
   const result = streamText({
     model: openai.chat("gpt-4o"),
     system: systemPrompt,
-    messages: convertToModelMessages(messages),
+    messages: await convertToModelMessages(messages),
     tools: {
       get_products: tool({
         description:
