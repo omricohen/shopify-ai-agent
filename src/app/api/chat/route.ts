@@ -4,7 +4,34 @@ import { z } from "zod";
 import { SYSTEM_PROMPT } from "@/lib/agents";
 import { ShopifyClient } from "@/lib/shopify";
 
-export const maxDuration = 60;
+export const maxDuration = 120;
+
+// Sanitize UI messages to remove incomplete tool call/result pairs.
+// When a tool execution times out or fails mid-stream, the frontend may
+// store a tool invocation part without the corresponding result, causing
+// OpenAI to reject the next request with "Tool result is missing for tool call".
+function sanitizeMessages(messages: any[]): any[] {
+  return messages
+    .map((msg: any) => {
+      if (!msg.parts) return msg;
+
+      const sanitizedParts = msg.parts.filter((part: any) => {
+        // Keep non-tool parts as-is
+        if (part.type !== "tool-invocation") return true;
+        // Only keep tool invocations that have completed with a result
+        return part.state === "result";
+      });
+
+      // If all tool parts were removed and no text remains, skip the message
+      const hasContent = sanitizedParts.some(
+        (p: any) => p.type === "text" || p.type === "tool-invocation"
+      );
+      if (!hasContent && msg.role === "assistant") return null;
+
+      return { ...msg, parts: sanitizedParts };
+    })
+    .filter(Boolean);
+}
 
 export async function POST(req: Request) {
   const body = await req.json();
@@ -30,10 +57,11 @@ export async function POST(req: Request) {
     }
   }
 
+  try {
   const result = streamText({
     model: openai.chat("gpt-5.4"),
     system: systemPrompt,
-    messages: await convertToModelMessages(messages),
+    messages: await convertToModelMessages(sanitizeMessages(messages)),
     tools: {
       get_products: tool({
         description:
@@ -480,4 +508,11 @@ ${description}`,
   });
 
   return result.toUIMessageStreamResponse();
+  } catch (error: any) {
+    console.error("Chat API error:", error);
+    return new Response(
+      JSON.stringify({ error: error.message || "Internal server error" }),
+      { status: 500 }
+    );
+  }
 }
