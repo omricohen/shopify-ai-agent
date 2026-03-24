@@ -4,15 +4,17 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Code2, Eye, Copy, Check } from "lucide-react";
+import { Code2, Eye, Copy, Check, Save } from "lucide-react";
 
 interface LiquidPreviewProps {
   code: string;
   title: string;
   pageType: string;
+  onSave?: () => void;
+  isSaved?: boolean;
 }
 
-export function LiquidPreview({ code, title, pageType }: LiquidPreviewProps) {
+export function LiquidPreview({ code, title, pageType, onSave, isSaved }: LiquidPreviewProps) {
   const [view, setView] = useState<"code" | "preview">("code");
   const [copied, setCopied] = useState(false);
 
@@ -72,6 +74,22 @@ export function LiquidPreview({ code, title, pageType }: LiquidPreviewProps) {
                 <Copy className="h-3 w-3" />
               )}
             </Button>
+            {onSave && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 text-xs gap-1"
+                onClick={onSave}
+                disabled={isSaved}
+              >
+                {isSaved ? (
+                  <Check className="h-3 w-3 text-emerald-500" />
+                ) : (
+                  <Save className="h-3 w-3" />
+                )}
+                {isSaved ? "Saved" : "Save"}
+              </Button>
+            )}
           </div>
         </div>
       </CardHeader>

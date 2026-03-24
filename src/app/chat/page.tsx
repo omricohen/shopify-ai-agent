@@ -20,6 +20,7 @@ import {
   FileText,
   X,
   LayoutDashboard,
+  FileCode2,
 } from "lucide-react";
 
 interface ToolResultData {
@@ -32,10 +33,10 @@ function extractToolResults(message: any): ToolResultData[] {
   if (!message.parts) return results;
 
   for (const part of message.parts) {
-    if (part.type !== "tool-invocation") continue;
-    if (part.state !== "result") continue;
+    if (!part.type?.startsWith("tool-")) continue;
+    if (part.state !== "output-available") continue;
 
-    const result = part.result;
+    const result = part.output;
     if (!result?.success) continue;
 
     switch (result.type) {
@@ -67,6 +68,8 @@ function extractToolResults(message: any): ToolResultData[] {
               code: result.data.code || result.data.description || "<!-- Liquid template -->",
               title: result.data.title,
               pageType: result.data.pageType,
+              description: result.data.description,
+              style: result.data.style,
             },
           });
         }
@@ -116,7 +119,7 @@ const quickActions = [
   { label: "🛒 Recent orders", prompt: "Show me the most recent orders." },
   { label: "🏷️ All products", prompt: "Show me all my products with their current status and pricing." },
   { label: "👥 Top customers", prompt: "Who are my top customers by total spend?" },
-  { label: "📈 Revenue trend", prompt: "Show me the revenue trend over the last 30 days." },
+  { label: "🎨 Generate a page", prompt: "Generate a modern landing page for my store with a hero section, featured products, and a call-to-action." },
 ];
 
 export default function ChatPage() {
@@ -230,6 +233,15 @@ export default function ChatPage() {
             >
               <LayoutDashboard className="h-3 w-3" />
               Dashboard
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-xs gap-1 text-muted-foreground"
+              onClick={() => router.push("/pages")}
+            >
+              <FileCode2 className="h-3 w-3" />
+              Pages
             </Button>
             {documentContent && (
               <Badge variant="info" className="gap-1 text-xs">

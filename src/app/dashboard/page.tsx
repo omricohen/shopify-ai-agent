@@ -19,6 +19,7 @@ import {
   RefreshCw,
   LogOut,
   Loader2,
+  FileCode2,
 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 
@@ -160,6 +161,15 @@ export default function DashboardPage() {
             >
               <MessageSquare className="h-3 w-3" />
               Chat
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-xs gap-1 text-muted-foreground"
+              onClick={() => router.push("/pages")}
+            >
+              <FileCode2 className="h-3 w-3" />
+              Pages
             </Button>
             <Separator orientation="vertical" className="h-6" />
             <Button

@@ -1,9 +1,10 @@
 "use client";
 
-import { memo } from "react";
+import { memo, useState, useCallback } from "react";
 import ReactMarkdown from "react-markdown";
 import { cn } from "@/lib/utils";
 import { Bot, User, Sparkles } from "lucide-react";
+import { usePages } from "@/lib/pages-context";
 import {
   ProductCard,
   OrdersTable,
@@ -27,6 +28,32 @@ interface ChatMessageProps {
   content: string;
   toolResults?: ToolResult[];
   isStreaming?: boolean;
+}
+
+function LiquidPreviewWithSave({ data }: { data: any }) {
+  const { savePage, pages } = usePages();
+  const [saved, setSaved] = useState(false);
+
+  const handleSave = useCallback(() => {
+    savePage({
+      title: data.title || "Untitled Page",
+      pageType: data.pageType || "custom",
+      style: data.style,
+      description: data.description,
+      code: data.code,
+    });
+    setSaved(true);
+  }, [data, savePage]);
+
+  return (
+    <LiquidPreview
+      code={data.code}
+      title={data.title}
+      pageType={data.pageType}
+      onSave={handleSave}
+      isSaved={saved}
+    />
+  );
 }
 
 function renderToolResult(result: ToolResult, index: number) {
@@ -59,14 +86,7 @@ function renderToolResult(result: ToolResult, index: number) {
     case "customers":
       return <CustomerList key={key} customers={result.data} />;
     case "liquid":
-      return (
-        <LiquidPreview
-          key={key}
-          code={result.data.code}
-          title={result.data.title}
-          pageType={result.data.pageType}
-        />
-      );
+      return <LiquidPreviewWithSave key={key} data={result.data} />;
     case "shop_info":
       return <ShopInfoCard key={key} shop={result.data} />;
     case "discounts":
