@@ -1,9 +1,8 @@
-import { streamText, tool, zodSchema, stepCountIs, convertToModelMessages } from "ai";
+import { streamText, generateText, tool, zodSchema, stepCountIs, convertToModelMessages } from "ai";
 import { openai } from "@ai-sdk/openai";
 import { z } from "zod";
 import { SYSTEM_PROMPT } from "@/lib/agents";
 import { ShopifyClient } from "@/lib/shopify";
-import { generateLiquidTemplate } from "@/lib/liquid-templates";
 
 export const maxDuration = 60;
 
@@ -287,7 +286,7 @@ export async function POST(req: Request) {
 
       generate_liquid_page: tool({
         description:
-          "Generate a Shopify Liquid template page based on requirements.",
+          "Generate a Shopify Liquid template page using AI. Pass the FULL user request as the description — be detailed and specific about layout, sections, content, style, colors, and any special requirements.",
         inputSchema: zodSchema(
           z.object({
             page_type: z
@@ -298,43 +297,62 @@ export async function POST(req: Request) {
             title: z.string().describe("Page title"),
             description: z
               .string()
-              .describe("Detailed description of the page content and design"),
-            sections: z
-              .array(z.string())
-              .optional()
-              .describe("Specific sections to include"),
+              .describe("Detailed description of the page content, design, sections, style, colors, and all requirements. Be as specific as possible — this drives the AI generation."),
             style: z
               .string()
               .optional()
-              .describe("Design style: modern, minimal, bold"),
+              .describe("Design style hint: modern, minimal, bold, dark, elegant"),
           })
         ),
         execute: async ({
           page_type,
           title,
           description,
-          sections,
           style,
         }) => {
-          const code = generateLiquidTemplate({
-            page_type,
-            title,
-            description,
-            sections,
-            style,
-          });
-          return {
-            success: true,
-            type: "liquid",
-            data: {
-              pageType: page_type,
-              title,
-              description,
-              sections: sections || [],
-              style: style || "modern",
-              code,
-            },
-          };
+          try {
+            const { text: code } = await generateText({
+              model: openai.chat("gpt-5.4"),
+              system: `You are an expert Shopify Liquid developer and web designer. Generate production-ready Shopify Liquid section templates.
+
+REQUIREMENTS:
+- Output ONLY the Liquid/HTML/CSS code — no markdown fences, no explanations, no commentary
+- Include a <style> block with all CSS (no external stylesheets)
+- Use semantic HTML5 elements
+- Make it fully responsive (mobile-first with media queries)
+- Use CSS custom properties for easy theming
+- Include a {% schema %} block at the end with customizable settings for all text content, colors, images, and links
+- Use {{ section.settings.* }} variables for all user-editable content with sensible defaults
+- Use Shopify Liquid tags ({% for product in ... %}, {{ product.title }}, etc.) where appropriate
+- Include realistic, compelling placeholder/default content — NOT lorem ipsum
+- Add subtle animations/transitions for polish (hover states, fade-ins)
+- Ensure accessibility (proper contrast, alt text, semantic markup, focus states)
+- Keep JavaScript minimal — use only if needed for interactivity (accordions, countdowns, etc.)
+- Design should feel premium, modern, and conversion-focused
+- All images should use Shopify's image_url filter or placeholder services`,
+              prompt: `Generate a ${page_type} page titled "${title}".
+
+Style: ${style || "modern"}
+
+Full requirements:
+${description}`,
+            });
+
+            return {
+              success: true,
+              type: "liquid",
+              data: {
+                pageType: page_type,
+                title,
+                description,
+                sections: [],
+                style: style || "modern",
+                code: code.replace(/^```[\w]*\n?/, "").replace(/\n?```\s*$/, ""),
+              },
+            };
+          } catch (error: any) {
+            return { success: false, error: error.message };
+          }
         },
       }),
 
