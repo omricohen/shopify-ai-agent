@@ -12,6 +12,9 @@ import {
   InventoryAlert,
   CustomerList,
   LiquidPreview,
+  ShopInfoCard,
+  DiscountList,
+  AbandonedCheckouts,
 } from "@/components/generative";
 
 export interface ToolResult {
@@ -64,6 +67,14 @@ function renderToolResult(result: ToolResult, index: number) {
           pageType={result.data.pageType}
         />
       );
+    case "shop_info":
+      return <ShopInfoCard key={key} shop={result.data} />;
+    case "discounts":
+      return <DiscountList key={key} discounts={result.data} />;
+    case "draft_orders":
+      return <OrdersTable key={key} orders={result.data} />;
+    case "abandoned_checkouts":
+      return <AbandonedCheckouts key={key} checkouts={result.data} />;
     default:
       return null;
   }

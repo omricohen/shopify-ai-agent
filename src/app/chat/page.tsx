@@ -19,6 +19,7 @@ import {
   Trash2,
   FileText,
   X,
+  LayoutDashboard,
 } from "lucide-react";
 
 interface ToolResultData {
@@ -70,10 +71,35 @@ function extractToolResults(message: any): ToolResultData[] {
           });
         }
         break;
+      case "shop_info":
+        results.push({ type: "shop_info", data: result.data });
+        break;
+      case "discounts":
+        results.push({ type: "discounts", data: result.data });
+        break;
+      case "draft_orders":
+        results.push({ type: "draft_orders", data: result.data });
+        break;
+      case "abandoned_checkouts":
+        results.push({ type: "abandoned_checkouts", data: result.data });
+        break;
     }
   }
 
   return results;
+}
+
+function extractSuggestions(text: string): { cleanText: string; suggestions: string[] } {
+  const match = text.match(/<!--suggestions:\[(.+?)\]-->/);
+  if (!match) return { cleanText: text, suggestions: [] };
+
+  try {
+    const suggestions = JSON.parse(`[${match[1]}]`) as string[];
+    const cleanText = text.replace(match[0], "").trimEnd();
+    return { cleanText, suggestions };
+  } catch {
+    return { cleanText: text, suggestions: [] };
+  }
 }
 
 function getMessageText(message: any): string {
@@ -119,6 +145,8 @@ export default function ChatPage() {
               summary: documentContent.summary,
               columns: documentContent.columns,
               rowCount: documentContent.rowCount,
+              columnAnalysis: documentContent.columnAnalysis,
+              insights: documentContent.insights,
             }
           : undefined,
       },
@@ -168,6 +196,11 @@ export default function ChatPage() {
     ?.replace(/\.myshopify\.com$/, "")
     ?.replace(/\/$/, "");
 
+  // Extract suggestions from the last assistant message
+  const lastAssistantMsg = [...messages].reverse().find((m) => m.role === "assistant");
+  const lastAssistantText = lastAssistantMsg ? getMessageText(lastAssistantMsg) : "";
+  const { suggestions } = !isLoading ? extractSuggestions(lastAssistantText) : { suggestions: [] };
+
   return (
     <div className="h-screen flex flex-col bg-background">
       {/* Header */}
@@ -189,6 +222,15 @@ export default function ChatPage() {
           </div>
 
           <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-xs gap-1 text-muted-foreground"
+              onClick={() => router.push("/dashboard")}
+            >
+              <LayoutDashboard className="h-3 w-3" />
+              Dashboard
+            </Button>
             {documentContent && (
               <Badge variant="info" className="gap-1 text-xs">
                 <FileText className="h-3 w-3" />
@@ -264,7 +306,8 @@ export default function ChatPage() {
               <div className="py-4 space-y-1">
                 {messages.map((message, i) => {
                   const toolResults = extractToolResults(message);
-                  const textContent = getMessageText(message);
+                  const rawText = getMessageText(message);
+                  const { cleanText } = extractSuggestions(rawText);
                   const isLastAssistant =
                     message.role === "assistant" &&
                     i === messages.length - 1 &&
@@ -274,7 +317,7 @@ export default function ChatPage() {
                     <ChatMessage
                       key={message.id}
                       role={message.role as "user" | "assistant"}
-                      content={textContent}
+                      content={cleanText}
                       toolResults={toolResults}
                       isStreaming={isLastAssistant}
                     />
@@ -287,6 +330,21 @@ export default function ChatPage() {
                     content=""
                     isStreaming={true}
                   />
+                )}
+
+                {/* Suggestion chips */}
+                {suggestions.length > 0 && !isLoading && (
+                  <div className="flex flex-wrap gap-2 pl-11 pt-2 pb-4 animate-fade-in">
+                    {suggestions.map((s, i) => (
+                      <button
+                        key={i}
+                        onClick={() => handleSend(s)}
+                        className="text-xs px-3 py-1.5 rounded-full border bg-card hover:bg-accent hover:border-primary/30 transition-all duration-200 text-muted-foreground hover:text-foreground"
+                      >
+                        {s}
+                      </button>
+                    ))}
+                  </div>
                 )}
               </div>
             )}

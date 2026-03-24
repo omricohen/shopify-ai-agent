@@ -115,6 +115,87 @@ export interface AnalyticsData {
   ordersByStatus: { status: string; count: number }[];
 }
 
+export interface ShopifyShopInfo {
+  id: string;
+  name: string;
+  email: string;
+  domain: string;
+  myshopify_domain: string;
+  plan_name: string;
+  plan_display_name: string;
+  currency: string;
+  money_format: string;
+  timezone: string;
+  iana_timezone: string;
+  country_name: string;
+  province: string;
+  city: string;
+  address1: string;
+  phone: string;
+  created_at: string;
+  updated_at: string;
+  shop_owner: string;
+  weight_unit: string;
+  primary_locale: string;
+}
+
+export interface ShopifyPriceRule {
+  id: string;
+  title: string;
+  value_type: "fixed_amount" | "percentage";
+  value: string;
+  starts_at: string;
+  ends_at: string | null;
+  usage_limit: number | null;
+  times_used: number;
+  status: string;
+  target_type: string;
+  target_selection: string;
+  created_at: string;
+}
+
+export interface ShopifyDiscountCode {
+  id: string;
+  code: string;
+  price_rule_id: string;
+  usage_count: number;
+  created_at: string;
+}
+
+export interface ShopifyDraftOrder {
+  id: string;
+  name: string;
+  email: string;
+  created_at: string;
+  updated_at: string;
+  status: string;
+  total_price: string;
+  subtotal_price: string;
+  total_tax: string;
+  currency: string;
+  line_items: ShopifyLineItem[];
+  customer: ShopifyCustomer | null;
+  note: string | null;
+  invoice_url: string;
+}
+
+export interface ShopifyAbandonedCheckout {
+  id: string;
+  token: string;
+  email: string;
+  created_at: string;
+  updated_at: string;
+  completed_at: string | null;
+  total_price: string;
+  subtotal_price: string;
+  total_discounts: string;
+  currency: string;
+  line_items: ShopifyLineItem[];
+  customer: ShopifyCustomer | null;
+  abandoned_checkout_url: string;
+  recovery_url: string;
+}
+
 export interface StoreCredentials {
   storeUrl: string;
   accessToken: string;

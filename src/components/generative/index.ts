@@ -5,3 +5,6 @@ export { MetricsRow } from "./MetricsRow";
 export { InventoryAlert } from "./InventoryAlert";
 export { CustomerList } from "./CustomerList";
 export { LiquidPreview } from "./LiquidPreview";
+export { ShopInfoCard } from "./ShopInfoCard";
+export { DiscountList } from "./DiscountList";
+export { AbandonedCheckouts } from "./AbandonedCheckouts";

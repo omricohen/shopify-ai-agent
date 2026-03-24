@@ -3,6 +3,7 @@ import { openai } from "@ai-sdk/openai";
 import { z } from "zod";
 import { SYSTEM_PROMPT } from "@/lib/agents";
 import { ShopifyClient } from "@/lib/shopify";
+import { generateLiquidTemplate } from "@/lib/liquid-templates";
 
 export const maxDuration = 60;
 
@@ -19,9 +20,16 @@ export async function POST(req: Request) {
 
   const shopify = new ShopifyClient(storeUrl, accessToken);
 
-  const systemPrompt = documentContent
-    ? `${SYSTEM_PROMPT}\n\n## Uploaded Document Context\nThe user has uploaded a document. Here is the parsed content:\nFilename: ${documentContent.filename}\nType: ${documentContent.type}\nSummary: ${documentContent.summary}\n${documentContent.columns ? `Columns: ${documentContent.columns.join(", ")}` : ""}\n${documentContent.rowCount ? `Rows: ${documentContent.rowCount}` : ""}\nContent:\n${documentContent.content}`
-    : SYSTEM_PROMPT;
+  let systemPrompt = SYSTEM_PROMPT;
+  if (documentContent) {
+    systemPrompt += `\n\n## Uploaded Document Context\nThe user has uploaded a document. Here is the parsed content:\nFilename: ${documentContent.filename}\nType: ${documentContent.type}\nSummary: ${documentContent.summary}\n${documentContent.columns ? `Columns: ${documentContent.columns.join(", ")}` : ""}\n${documentContent.rowCount ? `Rows: ${documentContent.rowCount}` : ""}\nContent:\n${documentContent.content}`;
+    if (documentContent.columnAnalysis) {
+      systemPrompt += `\n\nColumn Analysis:\n${JSON.stringify(documentContent.columnAnalysis, null, 2)}`;
+    }
+    if (documentContent.insights && documentContent.insights.length > 0) {
+      systemPrompt += `\n\nAuto-generated Insights:\n${documentContent.insights.map((i: string) => `- ${i}`).join("\n")}`;
+    }
+  }
 
   const result = streamText({
     model: openai.chat("gpt-5.4"),
@@ -308,6 +316,13 @@ export async function POST(req: Request) {
           sections,
           style,
         }) => {
+          const code = generateLiquidTemplate({
+            page_type,
+            title,
+            description,
+            sections,
+            style,
+          });
           return {
             success: true,
             type: "liquid",
@@ -317,9 +332,129 @@ export async function POST(req: Request) {
               description,
               sections: sections || [],
               style: style || "modern",
-              code: `<!-- Generated Liquid template for: ${title} -->`,
+              code,
             },
           };
+        },
+      }),
+
+      get_shop_info: tool({
+        description:
+          "Get store information: name, plan, domain, currency, timezone, owner, address.",
+        inputSchema: zodSchema(z.object({})),
+        execute: async () => {
+          try {
+            const shop = await shopify.getShopInfo();
+            return {
+              success: true,
+              type: "shop_info",
+              data: shop,
+            };
+          } catch (error: any) {
+            return { success: false, error: error.message };
+          }
+        },
+      }),
+
+      get_discount_codes: tool({
+        description:
+          "Fetch all discount codes with their value, usage statistics, and active/expired status.",
+        inputSchema: zodSchema(z.object({})),
+        execute: async () => {
+          try {
+            const discounts = await shopify.getDiscountCodes();
+            const formatted = discounts.map((d) => ({
+              code: d.code,
+              value_type: d.price_rule.value_type,
+              value: d.price_rule.value,
+              title: d.price_rule.title,
+              usage_count: d.usage_count,
+              usage_limit: d.price_rule.usage_limit,
+              starts_at: d.price_rule.starts_at,
+              ends_at: d.price_rule.ends_at,
+              times_used: d.price_rule.times_used,
+            }));
+            return {
+              success: true,
+              type: "discounts",
+              data: formatted,
+              count: formatted.length,
+            };
+          } catch (error: any) {
+            return { success: false, error: error.message };
+          }
+        },
+      }),
+
+      get_draft_orders: tool({
+        description:
+          "Fetch draft orders (pending invoices, custom orders not yet completed).",
+        inputSchema: zodSchema(
+          z.object({
+            limit: z.number().optional().describe("Max draft orders to return (default 50)"),
+            status: z
+              .string()
+              .optional()
+              .describe("Filter: open, invoice_sent, completed"),
+          })
+        ),
+        execute: async (params) => {
+          try {
+            const draftOrders = await shopify.getDraftOrders(params);
+            // Format like regular orders for reuse of OrdersTable
+            const formatted = draftOrders.map((d) => ({
+              id: d.id,
+              order_number: 0,
+              name: d.name,
+              email: d.email,
+              created_at: d.created_at,
+              updated_at: d.updated_at,
+              total_price: d.total_price,
+              subtotal_price: d.subtotal_price,
+              total_tax: d.total_tax,
+              currency: d.currency,
+              financial_status: d.status,
+              fulfillment_status: null,
+              line_items: d.line_items,
+              customer: d.customer,
+              shipping_address: null,
+              total_discounts: "0.00",
+              note: d.note,
+            }));
+            return {
+              success: true,
+              type: "draft_orders",
+              data: formatted,
+              count: formatted.length,
+            };
+          } catch (error: any) {
+            return { success: false, error: error.message };
+          }
+        },
+      }),
+
+      get_abandoned_checkouts: tool({
+        description:
+          "Fetch abandoned checkouts — carts that were started but never completed. Shows total lost revenue and recovery links.",
+        inputSchema: zodSchema(
+          z.object({
+            limit: z.number().optional().describe("Max checkouts to return (default 50)"),
+            created_at_min: z.string().optional().describe("Min creation date (ISO 8601)"),
+            created_at_max: z.string().optional().describe("Max creation date (ISO 8601)"),
+          })
+        ),
+        execute: async (params) => {
+          try {
+            const checkouts = await shopify.getAbandonedCheckouts(params);
+            return {
+              success: true,
+              type: "abandoned_checkouts",
+              data: checkouts,
+              count: checkouts.length,
+            };
+          } catch (error: any) {
+            return { success: false, error: error.message };
+          }
         },
       }),
     },

@@ -3,6 +3,11 @@ import {
   ShopifyOrder,
   ShopifyCustomer,
   ShopifyCollection,
+  ShopifyShopInfo,
+  ShopifyPriceRule,
+  ShopifyDiscountCode,
+  ShopifyDraftOrder,
+  ShopifyAbandonedCheckout,
   AnalyticsData,
 } from "@/types/shopify";
 
@@ -211,5 +216,71 @@ export class ShopifyClient {
       revenueByDay,
       ordersByStatus,
     };
+  }
+
+  async getShopInfo(): Promise<ShopifyShopInfo> {
+    const data = await this.request<{ shop: ShopifyShopInfo }>("shop");
+    return data.shop;
+  }
+
+  async getDiscountCodes(): Promise<
+    (ShopifyDiscountCode & { price_rule: ShopifyPriceRule })[]
+  > {
+    const rulesData = await this.request<{
+      price_rules: ShopifyPriceRule[];
+    }>("price_rules", { limit: "50" });
+
+    const results: (ShopifyDiscountCode & { price_rule: ShopifyPriceRule })[] =
+      [];
+
+    for (const rule of rulesData.price_rules) {
+      try {
+        const codesData = await this.request<{
+          discount_codes: ShopifyDiscountCode[];
+        }>(`price_rules/${rule.id}/discount_codes`);
+        for (const code of codesData.discount_codes) {
+          results.push({ ...code, price_rule: rule });
+        }
+      } catch {
+        // Skip rules where codes can't be fetched
+      }
+    }
+
+    return results;
+  }
+
+  async getDraftOrders(options?: {
+    limit?: number;
+    status?: string;
+  }): Promise<ShopifyDraftOrder[]> {
+    const params: Record<string, string> = {
+      limit: String(options?.limit || 50),
+    };
+    if (options?.status) params.status = options.status;
+
+    const data = await this.request<{ draft_orders: ShopifyDraftOrder[] }>(
+      "draft_orders",
+      params
+    );
+    return data.draft_orders;
+  }
+
+  async getAbandonedCheckouts(options?: {
+    limit?: number;
+    created_at_min?: string;
+    created_at_max?: string;
+  }): Promise<ShopifyAbandonedCheckout[]> {
+    const params: Record<string, string> = {
+      limit: String(options?.limit || 50),
+    };
+    if (options?.created_at_min)
+      params.created_at_min = options.created_at_min;
+    if (options?.created_at_max)
+      params.created_at_max = options.created_at_max;
+
+    const data = await this.request<{
+      checkouts: ShopifyAbandonedCheckout[];
+    }>("checkouts", params);
+    return data.checkouts;
   }
 }

@@ -1,5 +1,19 @@
 import { parse } from "csv-parse/sync";
 
+export interface ColumnAnalysis {
+  name: string;
+  type: "numeric" | "date" | "boolean" | "text";
+  stats?: {
+    min: number;
+    max: number;
+    sum: number;
+    avg: number;
+    median: number;
+  };
+  uniqueValues: number;
+  nullCount: number;
+}
+
 export interface ParsedDocument {
   type: "csv" | "pdf" | "unknown";
   filename: string;
@@ -8,6 +22,8 @@ export interface ParsedDocument {
   summary: string;
   rowCount?: number;
   columns?: string[];
+  columnAnalysis?: ColumnAnalysis[];
+  insights?: string[];
 }
 
 export async function parseDocument(
@@ -30,6 +46,133 @@ export async function parseDocument(
   };
 }
 
+function detectColumnType(
+  values: string[]
+): "numeric" | "date" | "boolean" | "text" {
+  const nonEmpty = values.filter((v) => v !== "" && v != null);
+  if (nonEmpty.length === 0) return "text";
+
+  // Check boolean
+  const boolSet = new Set(nonEmpty.map((v) => v.toLowerCase()));
+  if (
+    boolSet.size <= 2 &&
+    Array.from(boolSet).every((v) =>
+      ["true", "false", "yes", "no", "0", "1"].includes(v)
+    )
+  ) {
+    return "boolean";
+  }
+
+  // Check numeric
+  const numericCount = nonEmpty.filter((v) =>
+    /^-?\$?\d[\d,]*\.?\d*%?$/.test(v.replace(/[$,%\s]/g, ""))
+  ).length;
+  if (numericCount / nonEmpty.length > 0.8) return "numeric";
+
+  // Check date
+  const dateCount = nonEmpty.filter((v) => {
+    const d = new Date(v);
+    return !isNaN(d.getTime()) && v.length > 4;
+  }).length;
+  if (dateCount / nonEmpty.length > 0.8) return "date";
+
+  return "text";
+}
+
+function parseNumeric(v: string): number {
+  return parseFloat(v.replace(/[$,%\s]/g, ""));
+}
+
+function analyzeColumns(
+  records: Record<string, string>[],
+  columns: string[]
+): ColumnAnalysis[] {
+  return columns.map((col) => {
+    const values = records.map((r) => r[col] ?? "");
+    const type = detectColumnType(values);
+    const nonEmpty = values.filter((v) => v !== "" && v != null);
+    const nullCount = values.length - nonEmpty.length;
+    const uniqueValues = new Set(nonEmpty).size;
+
+    const analysis: ColumnAnalysis = { name: col, type, uniqueValues, nullCount };
+
+    if (type === "numeric") {
+      const nums = nonEmpty
+        .map(parseNumeric)
+        .filter((n) => !isNaN(n))
+        .sort((a, b) => a - b);
+      if (nums.length > 0) {
+        const sum = nums.reduce((a, b) => a + b, 0);
+        const mid = Math.floor(nums.length / 2);
+        analysis.stats = {
+          min: nums[0],
+          max: nums[nums.length - 1],
+          sum,
+          avg: sum / nums.length,
+          median:
+            nums.length % 2 === 0
+              ? (nums[mid - 1] + nums[mid]) / 2
+              : nums[mid],
+        };
+      }
+    }
+
+    return analysis;
+  });
+}
+
+function generateInsights(
+  records: Record<string, string>[],
+  columnAnalysis: ColumnAnalysis[]
+): string[] {
+  const insights: string[] = [];
+  const numericCols = columnAnalysis.filter(
+    (c) => c.type === "numeric" && c.stats
+  );
+
+  for (const col of numericCols) {
+    const s = col.stats!;
+    insights.push(
+      `"${col.name}" ranges from ${s.min.toLocaleString()} to ${s.max.toLocaleString()} (avg: ${s.avg.toFixed(2)}, median: ${s.median.toFixed(2)}, total: ${s.sum.toLocaleString()})`
+    );
+  }
+
+  // High null counts
+  for (const col of columnAnalysis) {
+    const pct = (col.nullCount / records.length) * 100;
+    if (pct > 20) {
+      insights.push(
+        `"${col.name}" has ${pct.toFixed(0)}% missing values (${col.nullCount}/${records.length} rows)`
+      );
+    }
+  }
+
+  // Low cardinality text columns (potential categories)
+  for (const col of columnAnalysis) {
+    if (col.type === "text" && col.uniqueValues > 1 && col.uniqueValues <= 20) {
+      insights.push(
+        `"${col.name}" looks like a category column with ${col.uniqueValues} unique values`
+      );
+    }
+  }
+
+  // Date range
+  const dateCols = columnAnalysis.filter((c) => c.type === "date");
+  for (const col of dateCols) {
+    const dates = records
+      .map((r) => new Date(r[col.name]))
+      .filter((d) => !isNaN(d.getTime()))
+      .sort((a, b) => a.getTime() - b.getTime());
+    if (dates.length > 0) {
+      insights.push(
+        `"${col.name}" spans from ${dates[0].toLocaleDateString()} to ${dates[dates.length - 1].toLocaleDateString()}`
+      );
+    }
+  }
+
+  return insights;
+}
+
 async function parseCSV(
   file: File | Buffer,
   filename: string
@@ -48,9 +191,11 @@ async function parseCSV(
   }) as Record<string, string>[];
 
   const columns = records.length > 0 ? Object.keys(records[0]) : [];
-  const preview = records.slice(0, 5);
+  const preview = records.slice(0, 50);
+  const columnAnalysis = analyzeColumns(records, columns);
+  const insights = generateInsights(records, columnAnalysis);
 
-  const summary = `CSV file "${filename}" with ${records.length} rows and ${columns.length} columns: ${columns.join(", ")}. First 5 rows preview available.`;
+  const summary = `CSV file "${filename}" with ${records.length} rows and ${columns.length} columns: ${columns.join(", ")}. First 50 rows preview available. ${insights.length} insights generated.`;
 
   return {
     type: "csv",
@@ -60,6 +205,8 @@ async function parseCSV(
     summary,
     rowCount: records.length,
     columns,
+    columnAnalysis,
+    insights,
   };
 }
 
@@ -87,7 +234,7 @@ async function parsePDF(
     return {
       type: "pdf",
       filename,
-      content: text.slice(0, 10000), // Limit content size
+      content: text.slice(0, 50000),
       summary,
     };
   } catch (error) {
