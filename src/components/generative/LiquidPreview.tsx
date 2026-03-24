@@ -25,36 +25,27 @@ function buildPreviewHtml(code: string): string {
     .replace(/\{%-?\s*(?:for|if|unless|elsif|else|endif|endfor|endunless|case|when|endcase|capture|endcapture|assign|increment|decrement|paginate|endpaginate|layout|section|render|include|liquid|break|continue|cycle|tablerow|endtablerow|raw|endraw|style|endstyle)\b[\s\S]*?-?%\}/g, "")
     // Remove any remaining {% %} tags
     .replace(/\{%[\s\S]*?%\}/g, "")
-    // Replace Liquid variables with realistic placeholder text
+    // Variables with | default: "value" — extract and use the default value
+    .replace(/\{\{[^}]*\|\s*default:\s*"([^"]*)"\s*\}\}/g, "$1")
+    .replace(/\{\{[^}]*\|\s*default:\s*'([^']*)'\s*\}\}/g, "$1")
+    // Product image URLs with image_url filter
+    .replace(/\{\{\s*product\.featured_image\s*\|[^}]*\}\}/g, "https://placehold.co/400x400/e2e8f0/64748b?text=Product")
+    .replace(/\{\{\s*product\.featured_image\.alt\s*\}\}/g, "Product image")
+    // Product fields
     .replace(/\{\{\s*product\.title\s*\}\}/g, "Sample Product")
-    .replace(/\{\{\s*product\.price\s*\|\s*money\s*\}\}/g, "$29.99")
-    .replace(/\{\{\s*product\.featured_image\s*\|\s*img_url:.*?\}\}/g, "https://placehold.co/400x400/e2e8f0/64748b?text=Product")
+    .replace(/\{\{\s*product\.price\s*\|[^}]*\}\}/g, "$29.99")
+    .replace(/\{\{\s*product\.compare_at_price\s*\|[^}]*\}\}/g, "$49.99")
     .replace(/\{\{\s*product\.description\s*\}\}/g, "A wonderful product for your store.")
     .replace(/\{\{\s*product\.url\s*\}\}/g, "#")
-    .replace(/\{\{\s*(?:section|block)\.settings\.(\w+)\s*\}\}/g, (_match, setting: string) => {
-      const placeholders: Record<string, string> = {
-        heading: "Welcome to Our Store",
-        subheading: "Discover amazing products",
-        subtitle: "Quality you can trust",
-        title: "Our Story",
-        text: "We are passionate about delivering the best products and experiences to our customers.",
-        description: "Learn more about what makes us special.",
-        button_text: "Shop Now",
-        button_label: "Learn More",
-        button_link: "#",
-        phone: "(555) 123-4567",
-        email: "hello@example.com",
-        address: "123 Main Street, City, ST 12345",
-        story: "Founded with a passion for quality, we have been serving our customers with dedication and care.",
-        mission: "Our mission is to provide exceptional products that enhance everyday life.",
-        question: "How does this work?",
-        answer: "It's simple — just browse, select, and enjoy!",
-        image: "https://placehold.co/800x400/e2e8f0/64748b?text=Image",
-      };
-      return placeholders[setting] || `[${setting.replace(/_/g, " ")}]`;
-    })
-    // Replace any remaining {{ }} variables
-    .replace(/\{\{[\s\S]*?\}\}/g, "[content]");
+    // Shop fields
+    .replace(/\{\{\s*shop\.email\s*\}\}/g, "hello@example.com")
+    .replace(/\{\{\s*shop\.name\s*\}\}/g, "My Store")
+    .replace(/\{\{\s*shop\.address1?\s*\}\}/g, "123 Main Street")
+    .replace(/\{\{\s*shop\.city\s*\}\}/g, "New York")
+    .replace(/\{\{\s*shop\.province\s*\}\}/g, "NY")
+    .replace(/\{\{\s*shop\.zip\s*\}\}/g, "10001")
+    // Any remaining {{ ... }} — show empty string instead of [content]
+    .replace(/\{\{[^}]*\}\}/g, "");
 
   // Wrap in a full HTML document so styles apply correctly
   return `<!DOCTYPE html>
