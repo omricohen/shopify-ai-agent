@@ -28,6 +28,33 @@ interface ToolResultData {
   data: any;
 }
 
+interface ActiveToolCall {
+  toolName: string;
+  state: string;
+  input?: any;
+}
+
+function extractActiveToolCalls(message: any): ActiveToolCall[] {
+  const active: ActiveToolCall[] = [];
+  if (!message.parts) return active;
+
+  for (const part of message.parts) {
+    // AI SDK v6 uses type "tool-<toolname>" for tool parts
+    if (!part.type?.startsWith("tool-")) continue;
+    // Only show tools that are still in progress (not completed or errored)
+    if (part.state === "output-available" || part.state === "output-error") continue;
+
+    // Extract tool name from the type string: "tool-generate_liquid_page" -> "generate_liquid_page"
+    const toolName = part.type.replace(/^tool-/, "");
+    active.push({
+      toolName,
+      state: part.state || "call",
+      input: part.input,
+    });
+  }
+  return active;
+}
+
 function extractToolResults(message: any): ToolResultData[] {
   const results: ToolResultData[] = [];
   if (!message.parts) return results;
@@ -324,6 +351,9 @@ export default function ChatPage() {
                     message.role === "assistant" &&
                     i === messages.length - 1 &&
                     isLoading;
+                  const activeTools = isLastAssistant
+                    ? extractActiveToolCalls(message)
+                    : [];
 
                   return (
                     <ChatMessage
@@ -332,6 +362,7 @@ export default function ChatPage() {
                       content={cleanText}
                       toolResults={toolResults}
                       isStreaming={isLastAssistant}
+                      activeToolCalls={activeTools}
                     />
                   );
                 })}

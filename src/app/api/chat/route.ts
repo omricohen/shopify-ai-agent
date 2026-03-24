@@ -16,15 +16,15 @@ function sanitizeMessages(messages: any[]): any[] {
       if (!msg.parts) return msg;
 
       const sanitizedParts = msg.parts.filter((part: any) => {
-        // Keep non-tool parts as-is
-        if (part.type !== "tool-invocation") return true;
-        // Only keep tool invocations that have completed with a result
-        return part.state === "result";
+        // Keep non-tool parts as-is (text, etc.)
+        if (!part.type?.startsWith("tool-")) return true;
+        // Only keep tool parts that have completed with a result
+        return part.state === "output-available";
       });
 
       // If all tool parts were removed and no text remains, skip the message
       const hasContent = sanitizedParts.some(
-        (p: any) => p.type === "text" || p.type === "tool-invocation"
+        (p: any) => p.type === "text" || p.type?.startsWith("tool-")
       );
       if (!hasContent && msg.role === "assistant") return null;
 
