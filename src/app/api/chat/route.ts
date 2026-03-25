@@ -314,29 +314,25 @@ export async function POST(req: Request) {
         }) => {
           try {
             const { text: code } = await generateText({
-              model: openai.chat("gpt-5.4"),
-              system: `You are an expert Shopify Liquid developer and web designer. Generate production-ready Shopify Liquid section templates.
+              model: openai.chat("gpt-4.1-mini"),
+              maxOutputTokens: 4000,
+              system: `You are an expert Shopify Liquid developer. Generate a Shopify Liquid section template.
 
-REQUIREMENTS:
-- Output ONLY the Liquid/HTML/CSS code — no markdown fences, no explanations, no commentary
-- Include a <style> block with all CSS (no external stylesheets)
-- Use semantic HTML5 elements
-- Make it fully responsive (mobile-first with media queries)
-- Use CSS custom properties for easy theming
-- Include a {% schema %} block at the end with customizable settings for all text content, colors, images, and links
-- Use {{ section.settings.* }} variables for all user-editable content with sensible defaults
-- Use Shopify Liquid tags ({% for product in ... %}, {{ product.title }}, etc.) where appropriate
-- Include realistic, compelling placeholder/default content — NOT lorem ipsum
-- Add subtle animations/transitions for polish (hover states, fade-ins)
-- Ensure accessibility (proper contrast, alt text, semantic markup, focus states)
-- Keep JavaScript minimal — use only if needed for interactivity (accordions, countdowns, etc.)
-- Design should feel premium, modern, and conversion-focused
+RULES:
+- Output ONLY Liquid/HTML/CSS code — no markdown, no explanations
+- Include a <style> block with all CSS inline (no external stylesheets)
+- Responsive layout with mobile-first media queries
+- Use CSS custom properties for theming
+- Include a {% schema %} block with settings for text, colors, and images with sensible defaults
+- Use {{ section.settings.* }} for editable content
+- Keep it concise — aim for clean, effective code, not maximal code
+- Realistic placeholder content, not lorem ipsum
 - All images should use Shopify's image_url filter or placeholder services`,
               prompt: `Generate a ${page_type} page titled "${title}".
 
 Style: ${style || "modern"}
 
-Full requirements:
+Requirements:
 ${description}`,
             });
 
