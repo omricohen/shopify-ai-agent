@@ -313,11 +313,30 @@ export async function POST(req: Request) {
           style,
         }) => {
           try {
+            // Fetch store context for personalized page generation
+            const [shopInfo, products] = await Promise.all([
+              shopify.getShopInfo().catch(() => null),
+              shopify.getProducts({ limit: 10 }).catch(() => []),
+            ]);
+
+            let storeContext = "";
+            if (shopInfo) {
+              storeContext += `\nStore: "${shopInfo.name}" (${shopInfo.domain})`;
+              if (shopInfo.currency) storeContext += `, currency: ${shopInfo.currency}`;
+            }
+            if (products.length > 0) {
+              const productList = products
+                .slice(0, 6)
+                .map((p: any) => `- ${p.title} (${p.product_type || "uncategorized"}, ${p.variants?.[0]?.price || "N/A"})`)
+                .join("\n");
+              storeContext += `\n\nReal products from this store:\n${productList}`;
+            }
+
             const { text: code } = await generateText({
               model: openai.chat("gpt-4.1-mini"),
               maxOutputTokens: 4000,
               system: `You are an expert Shopify Liquid developer. Generate a Shopify Liquid section template.
-
+${storeContext ? `\nSTORE CONTEXT:${storeContext}\nUse the store name, real product names, and pricing in default content where appropriate.\n` : ""}
 RULES:
 - Output ONLY Liquid/HTML/CSS code — no markdown, no explanations
 - Include a <style> block with all CSS inline (no external stylesheets)
@@ -326,7 +345,7 @@ RULES:
 - Include a {% schema %} block with settings for text, colors, and images with sensible defaults
 - Use {{ section.settings.* }} for editable content
 - Keep it concise — aim for clean, effective code, not maximal code
-- Realistic placeholder content, not lorem ipsum
+- Use real store content for placeholder/default text when store context is available
 - All images should use Shopify's image_url filter or placeholder services`,
               prompt: `Generate a ${page_type} page titled "${title}".
 
