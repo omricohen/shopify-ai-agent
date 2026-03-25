@@ -185,7 +185,36 @@ export default function ChatPage() {
       })
   );
 
-  const chat = useChat({ transport });
+  const chat = useChat({
+    transport,
+    onFinish: () => {
+      // Persist messages to localStorage after each completed exchange
+      try {
+        const msgs = chat.messages;
+        if (msgs.length > 0) {
+          localStorage.setItem("shopify_chat_messages", JSON.stringify(msgs));
+        }
+      } catch {
+        // localStorage may be full or unavailable
+      }
+    },
+  });
+
+  // Restore persisted messages on mount
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("shopify_chat_messages");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          chat.setMessages(parsed);
+        }
+      }
+    } catch {
+      // Ignore parse errors
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const messages = chat.messages;
   const status = chat.status;
@@ -292,7 +321,7 @@ export default function ChatPage() {
                 variant="ghost"
                 size="sm"
                 className="text-xs gap-1 text-muted-foreground"
-                onClick={() => chat.setMessages([])}
+                onClick={() => { chat.setMessages([]); localStorage.removeItem("shopify_chat_messages"); }}
               >
                 <Trash2 className="h-3 w-3" />
                 Clear
