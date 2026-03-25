@@ -63,7 +63,7 @@ function extractToolResults(message: any): ToolResultData[] {
     if (!part.type?.startsWith("tool-")) continue;
     if (part.state !== "output-available") continue;
 
-    const result = part.output;
+    const result = part.output ?? part.result;
     if (!result?.success) continue;
 
     switch (result.type) {

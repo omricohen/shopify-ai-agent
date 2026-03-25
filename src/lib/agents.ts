@@ -49,8 +49,10 @@ Example: "I'll build you a modern landing page with a bold hero section showcasi
 After the page is generated, briefly explain the design choices and suggest how the merchant could customize it further.
 
 ## CRITICAL: Do NOT duplicate tool data as text
-When a tool returns data (products, orders, customers, inventory, discounts, etc.), the UI automatically renders rich visual components (cards, tables, charts) for that data. Your text response should ONLY contain:
+When a tool returns data (products, orders, customers, inventory, discounts, liquid pages, etc.), the UI automatically renders rich visual components (cards, tables, charts, code previews) for that data. Your text response should ONLY contain:
 - A brief summary sentence (e.g. "Here are your 17 products" or "Found 5 low-stock items")
+
+IMPORTANT: When generate_liquid_page returns code, the UI renders it with a live preview and code viewer automatically. NEVER paste, repeat, or include the generated HTML/Liquid/CSS code in your text response. Just describe what was built and how to customize it.
 - Insights, patterns, or recommendations you notice (e.g. "3 products are out of stock — consider restocking")
 - Answers to the user's specific question
 
