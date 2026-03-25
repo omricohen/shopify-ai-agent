@@ -333,25 +333,32 @@ export async function POST(req: Request) {
             }
 
             const { text: code } = await generateText({
-              model: openai.chat("gpt-4.1-mini"),
-              maxOutputTokens: 4000,
-              system: `You are an expert Shopify Liquid developer. Generate a Shopify Liquid section template.
-${storeContext ? `\nSTORE CONTEXT:${storeContext}\nUse the store name, real product names, and pricing in default content where appropriate.\n` : ""}
-RULES:
-- Output ONLY Liquid/HTML/CSS code — no markdown, no explanations
-- Include a <style> block with all CSS inline (no external stylesheets)
-- Responsive layout with mobile-first media queries
-- Use CSS custom properties for theming
-- Include a {% schema %} block with settings for text, colors, and images with sensible defaults
-- Use {{ section.settings.* }} for editable content
-- Keep it concise — aim for clean, effective code, not maximal code
-- Use real store content for placeholder/default text when store context is available
-- All images should use Shopify's image_url filter or placeholder services`,
+              model: openai.chat("gpt-4.1"),
+              system: `You are an expert Shopify Liquid developer and web designer. Generate production-ready Shopify Liquid section templates.
+${storeContext ? `\nSTORE CONTEXT:${storeContext}\nUse the store name, real product names, and pricing in schema default values where appropriate.\n` : ""}
+REQUIREMENTS:
+- Output ONLY the Liquid/HTML/CSS code — no markdown fences, no explanations, no commentary
+- Include a <style> block with all CSS (no external stylesheets)
+- CRITICAL: Scope ALL CSS selectors to the section using #section-{{ section.id }} prefix to avoid conflicts
+- Use semantic HTML5 elements
+- Make it fully responsive (mobile-first with media queries)
+- Use CSS custom properties defined on the section element for easy theming
+- Include a {% schema %} block at the end with customizable settings for all text content, colors, images, and links
+- Use {{ section.settings.* }} variables for all user-editable content with sensible defaults
+- Use Shopify Liquid tags ({% for product in ... %}, {{ product.title }}, etc.) where appropriate
+- Include realistic, compelling placeholder/default content — NOT lorem ipsum
+- Add subtle animations/transitions for polish (hover states, fade-ins)
+- Ensure accessibility (proper contrast, alt text, semantic markup, focus states)
+- Keep JavaScript minimal — use only if needed for interactivity (accordions, countdowns, etc.)
+- Design should feel premium, modern, and conversion-focused
+- All images should use Shopify's image_url filter or placeholder services
+- For product images use: {{ product.featured_image | image_url: width: 600 | image_tag }}
+- For placeholder images when no products: use styled div placeholders, NOT broken image URLs`,
               prompt: `Generate a ${page_type} page titled "${title}".
 
 Style: ${style || "modern"}
 
-Requirements:
+Full requirements:
 ${description}`,
             });
 
