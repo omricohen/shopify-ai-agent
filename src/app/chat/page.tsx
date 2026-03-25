@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback, useMemo } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
@@ -154,6 +154,7 @@ export default function ChatPage() {
   const router = useRouter();
   const scrollRef = useRef<HTMLDivElement>(null);
   const [documentContent, setDocumentContent] = useState<ParsedDocument | null>(null);
+  const documentRef = useRef<ParsedDocument | null>(null);
 
   useEffect(() => {
     if (!isConnected) {
@@ -161,28 +162,27 @@ export default function ChatPage() {
     }
   }, [isConnected, router]);
 
-  const transport = useMemo(
+  const [transport] = useState(
     () =>
       new DefaultChatTransport({
         api: "/api/chat",
-        body: {
+        body: () => ({
           storeUrl: credentials?.storeUrl,
           accessToken: credentials?.accessToken,
-          documentContent: documentContent
+          documentContent: documentRef.current
             ? {
-                type: documentContent.type,
-                filename: documentContent.filename,
-                content: documentContent.content,
-                summary: documentContent.summary,
-                columns: documentContent.columns,
-                rowCount: documentContent.rowCount,
-                columnAnalysis: documentContent.columnAnalysis,
-                insights: documentContent.insights,
+                type: documentRef.current.type,
+                filename: documentRef.current.filename,
+                content: documentRef.current.content,
+                summary: documentRef.current.summary,
+                columns: documentRef.current.columns,
+                rowCount: documentRef.current.rowCount,
+                columnAnalysis: documentRef.current.columnAnalysis,
+                insights: documentRef.current.insights,
               }
             : undefined,
-        },
-      }),
-    [credentials?.storeUrl, credentials?.accessToken, documentContent]
+        }),
+      })
   );
 
   const chat = useChat({ transport });
@@ -204,6 +204,7 @@ export default function ChatPage() {
         try {
           const file = files[0];
           const parsed = await parseDocument(file, file.name);
+          documentRef.current = parsed;
           setDocumentContent(parsed);
 
           const fileInfo = `\n\n[Uploaded file: ${file.name} — ${parsed.summary}]`;
@@ -279,7 +280,7 @@ export default function ChatPage() {
                 <FileText className="h-3 w-3" />
                 {documentContent.filename}
                 <button
-                  onClick={() => setDocumentContent(null)}
+                  onClick={() => { documentRef.current = null; setDocumentContent(null); }}
                   className="ml-1 hover:text-foreground transition-colors"
                 >
                   <X className="h-3 w-3" />
