@@ -185,20 +185,7 @@ export default function ChatPage() {
       })
   );
 
-  const chat = useChat({
-    transport,
-    onFinish: () => {
-      // Persist messages to localStorage after each completed exchange
-      try {
-        const msgs = chat.messages;
-        if (msgs.length > 0) {
-          localStorage.setItem("shopify_chat_messages", JSON.stringify(msgs));
-        }
-      } catch {
-        // localStorage may be full or unavailable
-      }
-    },
-  });
+  const chat = useChat({ transport });
 
   // Restore persisted messages on mount
   useEffect(() => {
@@ -219,6 +206,17 @@ export default function ChatPage() {
   const messages = chat.messages;
   const status = chat.status;
   const isLoading = status === "streaming" || status === "submitted";
+
+  // Persist messages on every change (debounced via status)
+  useEffect(() => {
+    try {
+      if (messages.length > 0) {
+        localStorage.setItem("shopify_chat_messages", JSON.stringify(messages));
+      }
+    } catch {
+      // localStorage may be full or unavailable
+    }
+  }, [messages, status]);
 
   // Auto-scroll
   useEffect(() => {
