@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
@@ -161,27 +161,31 @@ export default function ChatPage() {
     }
   }, [isConnected, router]);
 
-  const chat = useChat({
-    transport: new DefaultChatTransport({
-      api: "/api/chat",
-      body: {
-        storeUrl: credentials?.storeUrl,
-        accessToken: credentials?.accessToken,
-        documentContent: documentContent
-          ? {
-              type: documentContent.type,
-              filename: documentContent.filename,
-              content: documentContent.content,
-              summary: documentContent.summary,
-              columns: documentContent.columns,
-              rowCount: documentContent.rowCount,
-              columnAnalysis: documentContent.columnAnalysis,
-              insights: documentContent.insights,
-            }
-          : undefined,
-      },
-    }),
-  });
+  const transport = useMemo(
+    () =>
+      new DefaultChatTransport({
+        api: "/api/chat",
+        body: {
+          storeUrl: credentials?.storeUrl,
+          accessToken: credentials?.accessToken,
+          documentContent: documentContent
+            ? {
+                type: documentContent.type,
+                filename: documentContent.filename,
+                content: documentContent.content,
+                summary: documentContent.summary,
+                columns: documentContent.columns,
+                rowCount: documentContent.rowCount,
+                columnAnalysis: documentContent.columnAnalysis,
+                insights: documentContent.insights,
+              }
+            : undefined,
+        },
+      }),
+    [credentials?.storeUrl, credentials?.accessToken, documentContent]
+  );
+
+  const chat = useChat({ transport });
 
   const messages = chat.messages;
   const status = chat.status;
