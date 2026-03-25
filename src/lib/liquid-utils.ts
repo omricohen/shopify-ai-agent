@@ -38,10 +38,29 @@ export function buildPreviewHtml(code: string): string {
     .replace(/\{\{\s*section\.settings\.(\w+)\s*\|[^}]*\}\}/g, (_match, key) => {
       return defaults[key] ?? "";
     })
-    // Remove for/if/unless control flow but keep inner content
-    .replace(/\{%-?\s*(?:for|if|unless|elsif|else|endif|endfor|endunless|case|when|endcase|capture|endcapture|assign|increment|decrement|paginate|endpaginate|layout|section|render|include|liquid|break|continue|cycle|tablerow|endtablerow|raw|endraw|style|endstyle)\b[\s\S]*?-?%\}/g, "")
+
+    // ── Smart control flow handling ──
+
+    // if/else blocks: keep only the {% else %} branch (fallback content for preview)
+    .replace(/\{%-?\s*if\b[\s\S]*?-?%\}([\s\S]*?)\{%-?\s*else\s*-?%\}([\s\S]*?)\{%-?\s*endif\s*-?%\}/g, "$2")
+    // if blocks without else: remove entirely (condition is false in preview)
+    .replace(/\{%-?\s*if\b[\s\S]*?-?%\}[\s\S]*?\{%-?\s*endif\s*-?%\}/g, "")
+
+    // case/when blocks: keep only the first {% when %} branch
+    .replace(/\{%-?\s*case\b[\s\S]*?-?%\}\s*\{%-?\s*when\b[\s\S]*?-?%\}([\s\S]*?)\{%-?\s*(?:when|endcase)\b[\s\S]*?-?%\}[\s\S]*?\{%-?\s*endcase\s*-?%\}/g, "$1")
+    // Clean up any remaining case blocks
+    .replace(/\{%-?\s*case\b[\s\S]*?-?%\}([\s\S]*?)\{%-?\s*endcase\s*-?%\}/g, "$1")
+
+    // for loops: keep inner content once (show one iteration)
+    .replace(/\{%-?\s*for\b[\s\S]*?-?%\}([\s\S]*?)\{%-?\s*endfor\s*-?%\}/g, "$1")
+
+    // Remove assign, capture, and other non-output tags
+    .replace(/\{%-?\s*(?:capture|endcapture|assign|increment|decrement|paginate|endpaginate|layout|section|render|include|liquid|break|continue|cycle|tablerow|endtablerow|raw|endraw|style|endstyle|unless|endunless)\b[\s\S]*?-?%\}/g, "")
     // Remove any remaining {% %} tags
     .replace(/\{%[\s\S]*?%\}/g, "")
+
+    // ── Variable replacements ──
+
     // Variables with | default: "value" — extract and use the default value
     .replace(/\{\{[^}]*\|\s*default:\s*"([^"]*)"\s*\}\}/g, "$1")
     .replace(/\{\{[^}]*\|\s*default:\s*'([^']*)'\s*\}\}/g, "$1")
@@ -50,7 +69,7 @@ export function buildPreviewHtml(code: string): string {
       return `$${(parseInt(cents) / 100).toFixed(2)}`;
     })
     // Product image URLs with image_url filter
-    .replace(/\{\{\s*product\.featured_image\s*\|[^}]*\}\}/g, "https://placehold.co/400x400/e2e8f0/64748b?text=Product")
+    .replace(/\{\{\s*product\.featured_image\s*\|[^}]*\}\}/g, "")
     .replace(/\{\{\s*product\.featured_image\.alt[^}]*\}\}/g, "Product image")
     // Product fields
     .replace(/\{\{\s*product\.title\s*\}\}/g, "Sample Product")

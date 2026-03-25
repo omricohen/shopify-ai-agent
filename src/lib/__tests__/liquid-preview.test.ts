@@ -89,10 +89,11 @@ describe("buildPreviewHtml", () => {
     expect(html).toContain('id="section-preview-1"');
   });
 
-  it("strips Liquid control tags but keeps inner content", () => {
-    const code = `{% if true %}<p>visible</p>{% endif %}`;
+  it("strips Liquid control tags and uses else branch for preview", () => {
+    const code = `{% if collection %}<p>has collection</p>{% else %}<p>fallback</p>{% endif %}`;
     const html = buildPreviewHtml(code);
-    expect(html).toContain("<p>visible</p>");
+    expect(html).toContain("<p>fallback</p>");
+    expect(html).not.toContain("has collection");
     expect(html).not.toContain("{% if");
     expect(html).not.toContain("{% endif");
   });
