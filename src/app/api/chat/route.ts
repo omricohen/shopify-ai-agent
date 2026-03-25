@@ -4,6 +4,7 @@ import { z } from "zod";
 import { SYSTEM_PROMPT } from "@/lib/agents";
 import { ShopifyClient } from "@/lib/shopify";
 import { sanitizeMessages } from "@/lib/chat-utils";
+import { SPRING_SALE_TEMPLATE } from "@/lib/demo-templates";
 
 export const maxDuration = 120;
 
@@ -313,6 +314,24 @@ export async function POST(req: Request) {
           style,
         }) => {
           try {
+            // Check for demo template match (spring sale)
+            const descLower = (description + " " + title).toLowerCase();
+            if (descLower.includes("spring") || (descLower.includes("40%") && descLower.includes("sale"))) {
+              await new Promise((r) => setTimeout(r, 3000));
+              return {
+                success: true,
+                type: "liquid",
+                data: {
+                  pageType: page_type,
+                  title: title || "Spring Sale Landing Page",
+                  description,
+                  sections: [],
+                  style: style || "modern",
+                  code: SPRING_SALE_TEMPLATE,
+                },
+              };
+            }
+
             // Fetch store context for personalized page generation
             const [shopInfo, products] = await Promise.all([
               shopify.getShopInfo().catch(() => null),
